@@ -1,0 +1,13 @@
+services:
+    postgres:
+        image: postgres:17
+        restart: always
+        env_file: .env
+        ports:
+            - "5432:5432"
+        volumes:
+            - db-data:/var/lib/postgresql/data
+            - ./migrations:/migrations
+
+volumes:
+    db-data:
