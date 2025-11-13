@@ -3,9 +3,13 @@ package main
 import (
 	"avito-intership-2025/internal/lib/config"
 	"avito-intership-2025/internal/lib/sl"
+	repo "avito-intership-2025/internal/repository"
+	"avito-intership-2025/internal/service"
 	"log/slog"
 	"os"
 
+	trmsqlx "github.com/avito-tech/go-transaction-manager/drivers/sqlx/v2"
+	"github.com/avito-tech/go-transaction-manager/trm/v2/manager"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
@@ -28,7 +32,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	_ = db
+	trManager := manager.Must(trmsqlx.NewDefaultFactory(db))
+
+	teamRepo := repo.NewTeamRepo(db, trmsqlx.DefaultCtxGetter)
+	userRepo := repo.NewUserRepo(db, trmsqlx.DefaultCtxGetter)
+	prRepo := repo.NewPullRequestRepo(db, trmsqlx.DefaultCtxGetter, trManager)
+
+	teamService := service.NewTeamService(trManager, teamRepo, userRepo)
+	userService := service.NewUserService(trManager, prRepo, userRepo, teamRepo)
 
 }
 
