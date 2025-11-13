@@ -8,21 +8,38 @@ import (
 	"errors"
 	"fmt"
 
+	trmsqlx "github.com/avito-tech/go-transaction-manager/drivers/sqlx/v2"
+	"github.com/avito-tech/go-transaction-manager/trm/v2/manager"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 )
 
-type PullRequestRepository struct {
-	db *sqlx.DB
+type PullRequestRepository interface {
+	Create(ctx context.Context, pr *models.PullRequest) (string, error)
+	GetById(ctx context.Context, prID string) (*models.PullRequest, error)
+	GetByAuthor(ctx context.Context, authorID string) ([]*models.PullRequest, error)
+	MarkAsMerged(ctx context.Context, prID string) error
+
+	GetReviewers(ctx context.Context, prID string) ([]string, error)
+	AssignReviewer(ctx context.Context, prID, userID string) error
+	ReassignReviewer(ctx context.Context, prID, oldUserID, newUserID string) error
 }
 
-func NewPullRequestRepository(db *sqlx.DB) *PullRequestRepository {
-	return &PullRequestRepository{
-		db: db,
+type PullRequestRepo struct {
+	db     *sqlx.DB
+	getter *trmsqlx.CtxGetter
+	trm    *manager.Manager
+}
+
+func NewPullRequestRepo(db *sqlx.DB, c *trmsqlx.CtxGetter, trm *manager.Manager) *PullRequestRepo {
+	return &PullRequestRepo{
+		db:     db,
+		getter: c,
+		trm:    trm,
 	}
 }
 
-func (r *PullRequestRepository) Create(ctx context.Context, pr *models.PullRequest) (string, error) {
+func (r *PullRequestRepo) Create(ctx context.Context, pr *models.PullRequest) (string, error) {
 	const op = "pull_request_repo.Create"
 
 	query := `
@@ -32,7 +49,7 @@ func (r *PullRequestRepository) Create(ctx context.Context, pr *models.PullReque
     `
 
 	var prID string
-	err := r.db.QueryRowContext(
+	err := r.getter.DefaultTrOrDB(ctx, r.db).QueryRowContext(
 		ctx,
 		query,
 		pr.ID,
@@ -49,7 +66,7 @@ func (r *PullRequestRepository) Create(ctx context.Context, pr *models.PullReque
 	return prID, nil
 }
 
-func (r *PullRequestRepository) GetById(ctx context.Context, prID string) (*models.PullRequest, error) {
+func (r *PullRequestRepo) GetById(ctx context.Context, prID string) (*models.PullRequest, error) {
 	const op = "pull_request_repo.GetById"
 
 	query := `
@@ -59,7 +76,7 @@ func (r *PullRequestRepository) GetById(ctx context.Context, prID string) (*mode
     `
 
 	var pr models.PullRequest
-	err := r.db.GetContext(ctx, &pr, query, prID)
+	err := r.getter.DefaultTrOrDB(ctx, r.db).GetContext(ctx, &pr, query, prID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
@@ -70,7 +87,7 @@ func (r *PullRequestRepository) GetById(ctx context.Context, prID string) (*mode
 	return &pr, nil
 }
 
-func (r *PullRequestRepository) GetByAuthor(ctx context.Context, authorID string) ([]*models.PullRequest, error) {
+func (r *PullRequestRepo) GetByAuthor(ctx context.Context, authorID string) ([]*models.PullRequest, error) {
 	const op = "pull_request_repo.GetByAuthor"
 
 	query := `
@@ -81,7 +98,7 @@ func (r *PullRequestRepository) GetByAuthor(ctx context.Context, authorID string
     `
 
 	var prs []*models.PullRequest
-	err := r.db.SelectContext(ctx, &prs, query, authorID)
+	err := r.getter.DefaultTrOrDB(ctx, r.db).SelectContext(ctx, &prs, query, authorID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return []*models.PullRequest{}, nil
@@ -92,7 +109,7 @@ func (r *PullRequestRepository) GetByAuthor(ctx context.Context, authorID string
 	return prs, nil
 }
 
-func (r *PullRequestRepository) MarkAsMerged(ctx context.Context, prID string) error {
+func (r *PullRequestRepo) MarkAsMerged(ctx context.Context, prID string) error {
 	const op = "pull_request_repo.MarkAsMerged"
 
 	query := `
@@ -101,7 +118,7 @@ func (r *PullRequestRepository) MarkAsMerged(ctx context.Context, prID string) e
         WHERE id = $1
     `
 
-	res, err := r.db.ExecContext(ctx, query, prID)
+	res, err := r.getter.DefaultTrOrDB(ctx, r.db).ExecContext(ctx, query, prID)
 	if err != nil {
 		return lib.Err(op, err)
 	}
@@ -116,7 +133,29 @@ func (r *PullRequestRepository) MarkAsMerged(ctx context.Context, prID string) e
 	return nil
 }
 
-func (r *PullRequestRepository) GetReviewers(ctx context.Context, prID string) ([]string, error) {
+func (r *PullRequestRepo) GetUserReviews(ctx context.Context, userID string) ([]*models.PullRequest, error) {
+	const op = "pull_request_repo.GetUserReviews"
+
+	query := `
+		SELECT p.id, p.title, p.author_id, p.status, p.need_more_reviewers, p.created_at
+		FROM pull_requests p
+		JOIN pr_reviewers prr ON prr.pull_request_id = p.id
+		WHERE prr.user_id = $1
+	`
+
+	var pullRequests []*models.PullRequest
+	err := r.getter.DefaultTrOrDB(ctx, r.db).SelectContext(ctx, &pullRequests, query, userID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, lib.Err(op, err)
+	}
+
+	return pullRequests, nil
+}
+
+func (r *PullRequestRepo) GetPrReviewers(ctx context.Context, prID string) ([]string, error) {
 	const op = "pull_request_repo.GetReviewers"
 
 	query := `
@@ -125,7 +164,7 @@ func (r *PullRequestRepository) GetReviewers(ctx context.Context, prID string) (
 	`
 
 	var userIDs []string
-	err := r.db.SelectContext(ctx, &userIDs, query, prID)
+	err := r.getter.DefaultTrOrDB(ctx, r.db).SelectContext(ctx, &userIDs, query, prID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
@@ -136,7 +175,7 @@ func (r *PullRequestRepository) GetReviewers(ctx context.Context, prID string) (
 	return userIDs, nil
 }
 
-func (r *PullRequestRepository) AssignReviewer(ctx context.Context, prID, userID string) error {
+func (r *PullRequestRepo) AssignReviewer(ctx context.Context, prID, userID string) error {
 	const op = "pull_request_repo.AssignReviewer"
 
 	query := `
@@ -144,7 +183,7 @@ func (r *PullRequestRepository) AssignReviewer(ctx context.Context, prID, userID
         VALUES ($1, $2)
     `
 
-	_, err := r.db.ExecContext(ctx, query, prID, userID)
+	_, err := r.getter.DefaultTrOrDB(ctx, r.db).ExecContext(ctx, query, prID, userID)
 	if err != nil {
 		return lib.Err(op, err)
 	}
@@ -152,50 +191,43 @@ func (r *PullRequestRepository) AssignReviewer(ctx context.Context, prID, userID
 	return nil
 }
 
-func (r *PullRequestRepository) ReassignReviewer(ctx context.Context, prID, oldUserID, newUserID string) error {
+func (r *PullRequestRepo) ReassignReviewer(ctx context.Context, prID, oldUserID, newUserID string) error {
 	const op = "pull_request_repo.ReassignReviewer"
 
-	// Начинаем транзакцию, т.к. операция должна быть атомарной
-	tx, err := r.db.BeginTxx(ctx, nil)
-	if err != nil {
-		return lib.Err(op, err)
-	}
-	defer func() {
+	err := r.trm.Do(ctx, func(ctx context.Context) error {
+		// Удаляем старого ревьюера
+		res, err := r.db.ExecContext(ctx,
+			`DELETE FROM pr_reviewers WHERE pull_request_id=$1 AND user_id=$2`,
+			prID, oldUserID)
 		if err != nil {
-			tx.Rollback()
-		} else {
-			err = tx.Commit()
+			return lib.Err(op, err)
 		}
-	}()
 
-	// Удаляем старого ревьюера
-	res, err := tx.ExecContext(ctx,
-		`DELETE FROM pr_reviewers WHERE pull_request_id=$1 AND user_id=$2`,
-		prID, oldUserID)
-	if err != nil {
-		return lib.Err(op, err)
-	}
-	rowsAffected, err := res.RowsAffected()
-	if err != nil {
-		return lib.Err(op, err)
-	}
-	if rowsAffected == 0 {
-		return fmt.Errorf("%s: old reviewer not assigned: %w", op, ErrNotFound)
-	}
+		rowsAffected, err := res.RowsAffected()
+		if err != nil {
+			return lib.Err(op, err)
+		}
 
-	// Добавляем нового ревьюера
-	_, err = tx.ExecContext(ctx,
-		`INSERT INTO pr_reviewers (pull_request_id, user_id) VALUES ($1, $2)`,
-		prID, newUserID)
-	if err != nil {
-		// проверяем на дубликат, если newUserID уже назначен
-		if pgErr, ok := err.(*pq.Error); ok {
-			if pgErr.Code == uniqueViolationCode {
-				return fmt.Errorf("%s: new reviewer already assigned: %w", op, err)
+		if rowsAffected == 0 {
+			return ErrNotFound
+		}
+
+		// Добавляем нового ревьюера
+		_, err = r.db.ExecContext(ctx,
+			`INSERT INTO pr_reviewers (pull_request_id, user_id) VALUES ($1, $2)`,
+			prID, newUserID)
+		if err != nil {
+			// Проверяем на дубликат, если newUserID уже назначен
+			if pgErr, ok := err.(*pq.Error); ok {
+				if pgErr.Code == uniqueViolationCode {
+					return fmt.Errorf("%s: new reviewer already assigned: %w", op, err)
+				}
 			}
+			return lib.Err(op, err)
 		}
-		return lib.Err(op, err)
-	}
 
-	return nil
+		return nil
+	})
+
+	return err // TRM автоматически обработает commit/rollback
 }

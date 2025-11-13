@@ -7,30 +7,46 @@ import (
 	"database/sql"
 	"errors"
 
+	trmsqlx "github.com/avito-tech/go-transaction-manager/drivers/sqlx/v2"
 	"github.com/jmoiron/sqlx"
 )
 
-type UserRepository struct {
-	db *sqlx.DB
+type UserRepository interface {
+	Save(ctx context.Context, user *models.User) (string, error)
+	GetById(ctx context.Context, userID string) (*models.User, error)
+	GetUsersInTeam(ctx context.Context, teamID int) ([]*models.User, error)
+	SetIsActive(ctx context.Context, userID string, isActive bool) error
 }
 
-func NewUserRepository(db *sqlx.DB) *UserRepository {
-	return &UserRepository{
-		db: db,
+type UserRepo struct {
+	db     *sqlx.DB
+	getter *trmsqlx.CtxGetter
+}
+
+func NewUserRepo(db *sqlx.DB, c *trmsqlx.CtxGetter) *UserRepo {
+	return &UserRepo{
+		db:     db,
+		getter: c,
 	}
 }
 
-func (r *UserRepository) Create(ctx context.Context, user *models.User) (string, error) {
-	const op = "user_repo.Create"
+func (r *UserRepo) Save(ctx context.Context, user *models.User) (string, error) {
+	const op = "user_repo.Save"
 
 	query := `
 		INSERT INTO users (id, name, team_id, is_active, created_at)
-		VALUES ($1, $2, $3, $4, now())
+		VALUES ($1, $2, $3, $4, NOW())
+		ON CONFLICT (id) DO UPDATE SET
+			name = EXCLUDED.name,
+			team_id = EXCLUDED.team_id,
+			is_active = EXCLUDED.is_active
 		RETURNING id;
 	`
 
 	var userID string
-	err := r.db.QueryRowContext(ctx, query, user.ID, user.Name, user.TeamID, user.IsActive).Scan(&userID)
+	err := r.getter.
+		DefaultTrOrDB(ctx, r.db).
+		QueryRowContext(ctx, query, user.ID, user.Name, user.TeamID, user.IsActive).Scan(&userID)
 	if err != nil {
 		return "", lib.Err(op, err)
 	}
@@ -38,7 +54,7 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) (string,
 	return userID, nil
 }
 
-func (r *UserRepository) GetById(ctx context.Context, userID string) (*models.User, error) {
+func (r *UserRepo) GetById(ctx context.Context, userID string) (*models.User, error) {
 	const op = "user_repo.GetById"
 
 	query := `
@@ -48,7 +64,7 @@ func (r *UserRepository) GetById(ctx context.Context, userID string) (*models.Us
 	`
 
 	var user models.User
-	err := r.db.GetContext(ctx, &user, query, userID)
+	err := r.getter.DefaultTrOrDB(ctx, r.db).GetContext(ctx, &user, query, userID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
@@ -59,17 +75,18 @@ func (r *UserRepository) GetById(ctx context.Context, userID string) (*models.Us
 	return &user, nil
 }
 
-func (r *UserRepository) GetUsersInTeam(ctx context.Context, teamID int) ([]*models.User, error) {
+func (r *UserRepo) GetUsersInTeam(ctx context.Context, teamName string) ([]*models.User, error) {
 	const op = "user_repo.GetUsersInTeam"
 
 	query := `
-		SELECT id, name, team_id, is_active, created_at
-		FROM users
-		WHERE team_id = $1;
+		SELECT u.id, u.name, u.team_id, u.is_active, u.created_at
+		FROM users u
+		JOIN teams t ON u.team_id = t.id
+		WHERE t.name = $1;
 	`
 
 	var users []*models.User
-	err := r.db.SelectContext(ctx, &users, query, teamID)
+	err := r.getter.DefaultTrOrDB(ctx, r.db).SelectContext(ctx, &users, query, teamName)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return []*models.User{}, nil
@@ -80,7 +97,32 @@ func (r *UserRepository) GetUsersInTeam(ctx context.Context, teamID int) ([]*mod
 	return users, nil
 }
 
-func (r *UserRepository) Update(ctx context.Context, user *models.User) error {
+func (r *UserRepo) SetIsActive(ctx context.Context, userID string, isActive bool) error {
+	const op = "user_repo.SetIsActive"
+
+	query := `UPDATE users SET is_active = $1 WHERE id = $2`
+
+	res, err := r.db.ExecContext(ctx, query, isActive, userID)
+	if err != nil {
+		return lib.Err(op, err)
+	}
+
+	// проверяем сработал ли запрос на какую-либо строку
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return lib.Err(op, err)
+	}
+
+	if rowsAffected == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}
+
+/* заменил на Save, но не хочу удалять, т.к. мало ли понадобятся
+
+func (r *UserRepo) Update(ctx context.Context, user *models.User) error {
 	const op = "user_repo.Update"
 
 	query := `
@@ -107,25 +149,29 @@ func (r *UserRepository) Update(ctx context.Context, user *models.User) error {
 	return nil
 }
 
-func (r *UserRepository) SetIsActive(ctx context.Context, userID string, isActive bool) error {
-	const op = "user_repo.SetIsActive"
+func (r *UserRepo) Create(ctx context.Context, user *models.User) (string, error) {
+	const op = "user_repo.Create"
 
-	query := `UPDATE users SET is_active = $1 WHERE id = $2`
+	query := `
+		INSERT INTO users (id, name, team_id, is_active, created_at)
+		VALUES ($1, $2, $3, $4, now())
+		RETURNING id;
+	`
 
-	res, err := r.db.ExecContext(ctx, query, isActive, userID)
+	var userID string
+	err := r.getter.
+		DefaultTrOrDB(ctx, r.db).
+		QueryRowContext(ctx, query, user.ID, user.Name, user.TeamID, user.IsActive).Scan(&userID)
+
 	if err != nil {
-		return lib.Err(op, err)
+		if pgErr, ok := err.(*pq.Error); ok {
+			if pgErr.Code == uniqueViolationCode {
+				return "", ErrUserExists
+			}
+		}
+		return "", lib.Err(op, err)
 	}
 
-	// проверяем сработал ли запрос на какую-либо строку
-	rowsAffected, err := res.RowsAffected()
-	if err != nil {
-		return lib.Err(op, err)
-	}
-
-	if rowsAffected == 0 {
-		return ErrNotFound
-	}
-
-	return nil
+	return userID, nil
 }
+*/
