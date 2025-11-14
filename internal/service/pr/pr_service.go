@@ -7,7 +7,6 @@ import (
 	"avito-intership-2025/internal/service"
 	"context"
 	"errors"
-	"fmt"
 	"math/rand/v2"
 )
 
@@ -125,9 +124,6 @@ func (s *PullRequestService) Merge(ctx context.Context, prID string) (*api.PullR
 		if pr.Status == StatusOpen {
 			err = s.prController.MarkAsMerged(ctx, pr.ID)
 		}
-		if err != nil {
-			return err
-		}
 
 		pr, err = s.prController.GetById(ctx, prID)
 		if err != nil {
@@ -188,7 +184,6 @@ func (s *PullRequestService) Reassign(ctx context.Context, prID, oldRev string) 
 			return repo.ErrNoCandidate
 		} else {
 			newRev = getRandomUsers(activeUsers, 1, exludedReviewers...)[0]
-			fmt.Println("new reviewer:", newRev)
 
 			err = s.reviewerProvider.ReassignReviewer(ctx, prID, oldRev, newRev)
 		}
