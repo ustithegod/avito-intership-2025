@@ -14,10 +14,11 @@ type Config struct {
 }
 
 type HttpServer struct {
-	Address      string        `yaml:"address" env-default:"localhost:8080"`
-	ReadTimeout  time.Duration `yaml:"read_timeout" env-default:"5s"`
-	WriteTimeout time.Duration `yaml:"write_timeout" env-default:"10s"`
-	IdleTimeout  time.Duration `yaml:"idle_timeout" env-default:"60s"`
+	Address         string        `yaml:"address" env-default:"localhost:8080"`
+	ReadTimeout     time.Duration `yaml:"read_timeout" env-default:"5s"`
+	WriteTimeout    time.Duration `yaml:"write_timeout" env-default:"10s"`
+	IdleTimeout     time.Duration `yaml:"idle_timeout" env-default:"60s"`
+	ShutdownTimeout time.Duration `yaml:"shutdown_timeout" end-default:"15s"`
 }
 
 // MustLoad panics if config can not be found.

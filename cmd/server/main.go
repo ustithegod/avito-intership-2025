@@ -12,6 +12,10 @@ import (
 	"avito-intership-2025/internal/service/pr"
 	"avito-intership-2025/internal/service/team"
 	"avito-intership-2025/internal/service/user"
+	"context"
+	"errors"
+	"os/signal"
+	"syscall"
 
 	"log/slog"
 	"net/http"
@@ -97,12 +101,45 @@ func main() {
 		IdleTimeout:  cfg.HTTPServer.IdleTimeout,
 	}
 
-	if err := srv.ListenAndServe(); err != nil {
-		log.Error("failed to start http server", sl.Err(err))
-		os.Exit(1)
+	// GRACEFUL: Каналы для ошибок сервера и сигналов
+	serverErrCh := make(chan error, 1)
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+	// GRACEFUL: Запускаем сервер в горутине
+	go func() {
+		err := srv.ListenAndServe()
+		serverErrCh <- err
+	}()
+
+	select {
+	case sig := <-sigCh:
+		log.Info("shutdown signal received", slog.String("signal", sig.String()))
+		shutdownTimeout := cfg.HTTPServer.ShutdownTimeout
+		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer cancel()
+
+		if err := srv.Shutdown(ctx); err != nil {
+			log.Error("graceful shutdown failed", sl.Err(err))
+		} else {
+			log.Info("http server stopped gracefully")
+		}
+
+		if err := db.Close(); err != nil {
+			log.Error("failed to close db", sl.Err(err))
+		}
+
+	case err := <-serverErrCh:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Error("http server error", sl.Err(err))
+			_ = db.Close()
+			os.Exit(1)
+		}
+		log.Info("http server exited", slog.Any("err", err))
+		_ = db.Close()
 	}
 
-	log.Error("http server stopped")
+	log.Info("application shutdown complete")
 }
 
 func setupLogger(env string) *slog.Logger {
