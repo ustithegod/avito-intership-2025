@@ -16,7 +16,7 @@ type TeamSchema struct {
 
 type TeamMember struct {
 	UserID   string `json:"user_id"`
-	Username string `json:"username"`
+	Username string `json:"username" validate:"max=16"`
 	IsActive bool   `json:"is_active"`
 }
 

@@ -61,7 +61,7 @@ func (r *PullRequestRepo) Create(ctx context.Context, pr *models.PullRequest) (s
 	if err != nil {
 		if pgErr, ok := err.(*pq.Error); ok {
 			if pgErr.Code == uniqueViolationCode {
-				return "", ErrTeamExists
+				return "", ErrPRExists
 			}
 		}
 		return "", lib.Err(op, err)
@@ -165,7 +165,7 @@ func (r *PullRequestRepo) GetUserReviews(ctx context.Context, userID string) ([]
 	const op = "pull_request_repo.GetUserReviews"
 
 	query := `
-		SELECT p.id, p.title, p.author_id, p.status, p.need_more_reviewers, p.created_at, p.merged_at
+		SELECT p.id, p.title, p.author_id, p.status, p.created_at, p.merged_at
 		FROM pull_requests p
 		JOIN pr_reviewers prr ON prr.pull_request_id = p.id
 		WHERE prr.user_id = $1
@@ -175,7 +175,7 @@ func (r *PullRequestRepo) GetUserReviews(ctx context.Context, userID string) ([]
 	err := r.getter.DefaultTrOrDB(ctx, r.db).SelectContext(ctx, &pullRequests, query, userID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return []*models.PullRequest{}, nil
 		}
 		return nil, lib.Err(op, err)
 	}
@@ -233,11 +233,11 @@ func (r *PullRequestRepo) ReassignReviewer(ctx context.Context, prID, oldUserID,
 
 		rowsAffected, err := res.RowsAffected()
 		if err != nil {
-			return ErrNotFound
+			return lib.Err(op, err)
 		}
 
 		if rowsAffected == 0 {
-			return ErrNotFound
+			return ErrNotAssigned
 		}
 
 		// Добавляем нового ревьюера
