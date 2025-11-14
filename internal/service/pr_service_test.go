@@ -3,6 +3,7 @@ package service
 import (
 	"avito-intership-2025/internal/http/api"
 	"avito-intership-2025/internal/models"
+	repo "avito-intership-2025/internal/repository"
 	"avito-intership-2025/internal/service/mocks"
 	"context"
 	"errors"
@@ -243,7 +244,37 @@ func TestPullRequestService_Reassign(t *testing.T) {
 			},
 		},
 		{
-			name: "reassign deletes reviewer when no available users",
+			name: "reassign fails when reviewer not assigned",
+			setupMocks: func(
+				prCtrl *mocks.PrController,
+				userGetter *mocks.UserGetter,
+				reviewerProv *mocks.ReviewerProvider,
+				trm *mocks.MockManager,
+			) {
+				pr := &models.PullRequest{
+					ID:       prID,
+					Title:    "Test PR",
+					AuthorId: "user-123",
+					Status:   StatusOpen,
+				}
+				assignedReviewers := []string{"user-789"} // oldRev не в списке
+
+				prCtrl.On("GetById", ctx, prID).Return(pr, nil).Once()
+				reviewerProv.On("GetPrReviewers", ctx, prID).Return(assignedReviewers, nil).Once()
+				trm.On("Do", ctx, mock.AnythingOfType("func(context.Context) error")).
+					Run(func(args mock.Arguments) {
+						fn := args.Get(1).(func(context.Context) error)
+						fn(ctx)
+					}).Return(repo.ErrNotAssigned)
+			},
+			checkResponse: func(t *testing.T, resp *api.ReassignResponse, err error) {
+				assert.Error(t, err)
+				assert.Equal(t, repo.ErrNotAssigned, err)
+				assert.Nil(t, resp)
+			},
+		},
+		{
+			name: "reassign fails when no available users",
 			setupMocks: func(
 				prCtrl *mocks.PrController,
 				userGetter *mocks.UserGetter,
@@ -259,26 +290,21 @@ func TestPullRequestService_Reassign(t *testing.T) {
 				author := &models.User{ID: "user-123", TeamID: 1}
 				activeUsers := []string{"user-123", "user-456"} // только автор и старый ревьювер
 				assignedReviewers := []string{"user-456"}
-				finalReviewers := []string{}
 
-				prCtrl.On("GetById", ctx, prID).Return(pr, nil).Twice()
+				prCtrl.On("GetById", ctx, prID).Return(pr, nil).Once()
 				userGetter.On("GetById", ctx, "user-123").Return(author, nil)
 				userGetter.On("GetActiveUsersIDInTeam", ctx, 1).Return(activeUsers, nil)
 				reviewerProv.On("GetPrReviewers", ctx, prID).Return(assignedReviewers, nil).Once()
-				reviewerProv.On("DeleteReviewer", ctx, prID, oldRev).Return(nil)
-				reviewerProv.On("GetPrReviewers", ctx, prID).Return(finalReviewers, nil).Once()
 				trm.On("Do", ctx, mock.AnythingOfType("func(context.Context) error")).
 					Run(func(args mock.Arguments) {
 						fn := args.Get(1).(func(context.Context) error)
 						fn(ctx)
-					}).Return(nil)
+					}).Return(repo.ErrNoCandidate)
 			},
 			checkResponse: func(t *testing.T, resp *api.ReassignResponse, err error) {
-				assert.NoError(t, err)
-				assert.NotNil(t, resp)
-				assert.Equal(t, prID, resp.PullRequest.ID)
-				assert.Empty(t, resp.PullRequest.AssignedReviewers)
-				assert.Empty(t, resp.ReplacedBy)
+				assert.Error(t, err)
+				assert.Equal(t, repo.ErrNoCandidate, err)
+				assert.Nil(t, resp)
 			},
 		},
 	}

@@ -3,9 +3,9 @@ package service
 import (
 	"avito-intership-2025/internal/http/api"
 	"avito-intership-2025/internal/models"
+	repo "avito-intership-2025/internal/repository"
 	"context"
 	"errors"
-	"fmt"
 	"math/rand/v2"
 )
 
@@ -45,14 +45,14 @@ type PullRequestService struct {
 func NewPullRequestService(
 	trm TransactionManager,
 	prController PrController,
-	userGetter UserGetter,
 	reviewerProvider ReviewerProvider,
+	userGetter UserGetter,
 ) *PullRequestService {
 	return &PullRequestService{
 		trm:              trm,
 		prController:     prController,
-		userGetter:       userGetter,
 		reviewerProvider: reviewerProvider,
+		userGetter:       userGetter,
 	}
 }
 
@@ -124,6 +124,9 @@ func (s *PullRequestService) Merge(ctx context.Context, prID string) (*api.PullR
 		if pr.Status == StatusOpen {
 			err = s.prController.MarkAsMerged(ctx, pr.ID)
 		}
+		if err != nil {
+			return err
+		}
 
 		pr, err = s.prController.GetById(ctx, prID)
 		if err != nil {
@@ -152,51 +155,74 @@ func (s *PullRequestService) Reassign(ctx context.Context, prID, oldRev string) 
 	}
 
 	err := s.trm.Do(ctx, func(ctx context.Context) error {
+		// Получаем PR
 		pr, err := s.prController.GetById(ctx, prID)
 		if err != nil {
 			return err
 		}
 
+		// Проверка: нельзя переназначить на MERGED PR
 		if pr.Status == StatusMerged {
 			return ErrTryMergeMerged
 		}
 
+		// Получаем текущих назначенных ревьюверов
+		assignedReviewers, err := s.reviewerProvider.GetPrReviewers(ctx, prID)
+		if err != nil {
+			return err
+		}
+
+		// Проверка: oldRev должен быть назначен на этот PR
+		isAssigned := false
+		for _, reviewerID := range assignedReviewers {
+			if reviewerID == oldRev {
+				isAssigned = true
+				break
+			}
+		}
+		if !isAssigned {
+			return repo.ErrNotAssigned
+		}
+
+		// Получаем автора и его команду
 		author, err := s.userGetter.GetById(ctx, pr.AuthorId)
 		if err != nil {
 			return err
 		}
+
 		teamID := author.TeamID
 		activeUsers, err := s.userGetter.GetActiveUsersIDInTeam(ctx, teamID)
 		if err != nil {
 			return err
 		}
 
-		assignedReviewers, err := s.reviewerProvider.GetPrReviewers(ctx, prID)
+		// Исключаем автора и всех уже назначенных ревьюверов
+		excludedReviewers := []string{author.ID}
+		excludedReviewers = append(excludedReviewers, assignedReviewers...)
+
+		// Пытаемся найти нового кандидата
+		candidates := getRandomUsers(activeUsers, 1, excludedReviewers...)
+
+		// Проверка: должен быть хотя бы один доступный кандидат
+		if len(candidates) == 0 {
+			return repo.ErrNoCandidate
+		}
+
+		newRev := candidates[0]
+
+		// Переназначаем ревьювера
+		err = s.reviewerProvider.ReassignReviewer(ctx, prID, oldRev, newRev)
 		if err != nil {
 			return err
 		}
 
-		exludedReviewers := []string{author.ID}
-		exludedReviewers = append(exludedReviewers, assignedReviewers...)
-
-		newRev := ""
-		if len(exludedReviewers) >= len(activeUsers) {
-			err = s.reviewerProvider.DeleteReviewer(ctx, prID, oldRev)
-		} else {
-			newRev = getRandomUsers(activeUsers, 1, exludedReviewers...)[0]
-			fmt.Println("new reviewer:", newRev)
-
-			err = s.reviewerProvider.ReassignReviewer(ctx, prID, oldRev, newRev)
-		}
-		if err != nil {
-			return err
-		}
-
+		// Получаем обновлённый PR
 		pr, err = s.prController.GetById(ctx, prID)
 		if err != nil {
 			return err
 		}
 
+		// Получаем обновлённый список ревьюверов
 		reviewers, err := s.reviewerProvider.GetPrReviewers(ctx, prID)
 		if err != nil {
 			return err

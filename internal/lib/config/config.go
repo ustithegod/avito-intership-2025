@@ -10,7 +10,7 @@ import (
 
 type Config struct {
 	Env        string     `yaml:"env" env-default:"info"`
-	HttpServer HttpServer `yaml:"http_server" env-required:"true"`
+	HTTPServer HttpServer `yaml:"http_server" env-required:"true"`
 }
 
 type HttpServer struct {
