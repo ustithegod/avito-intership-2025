@@ -97,6 +97,28 @@ func (r *UserRepo) GetUsersInTeam(ctx context.Context, teamName string) ([]*mode
 	return users, nil
 }
 
+func (r *UserRepo) GetActiveUsersIDInTeam(ctx context.Context, teamID int) ([]string, error) {
+	const op = "user_repo.GetActiveUsersInTeam"
+
+	query := `
+		SELECT u.id
+		FROM users u
+		JOIN teams t ON u.team_id = t.id
+		WHERE t.id = $1 AND u.is_active = TRUE;
+	`
+
+	var users []string
+	err := r.getter.DefaultTrOrDB(ctx, r.db).SelectContext(ctx, &users, query, teamID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return []string{}, nil
+		}
+		return nil, lib.Err(op, err)
+	}
+
+	return users, nil
+}
+
 func (r *UserRepo) SetIsActive(ctx context.Context, userID string, isActive bool) error {
 	const op = "user_repo.SetIsActive"
 

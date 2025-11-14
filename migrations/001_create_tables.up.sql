@@ -19,8 +19,8 @@ CREATE TABLE pull_requests (
     title TEXT NOT NULL,
     author_id TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     status TEXT NOT NULL CHECK (status IN ('OPEN', 'MERGED')),
-    need_more_reviewers BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    merged_at TIMESTAMP DEFAULT NULL
 );
 
 

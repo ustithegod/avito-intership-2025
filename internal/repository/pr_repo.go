@@ -43,8 +43,8 @@ func (r *PullRequestRepo) Create(ctx context.Context, pr *models.PullRequest) (s
 	const op = "pull_request_repo.Create"
 
 	query := `
-        INSERT INTO pull_requests (id, title, author_id, status, need_more_reviewers, created_at)
-        VALUES ($1, $2, $3, $4, $5, now())
+        INSERT INTO pull_requests (id, title, author_id, status, created_at)
+        VALUES ($1, $2, $3, $4, now())
         RETURNING id;
     `
 
@@ -56,10 +56,14 @@ func (r *PullRequestRepo) Create(ctx context.Context, pr *models.PullRequest) (s
 		pr.Title,
 		pr.AuthorId,
 		pr.Status,
-		pr.NeedMoreReviewers,
 	).Scan(&prID)
 
 	if err != nil {
+		if pgErr, ok := err.(*pq.Error); ok {
+			if pgErr.Code == uniqueViolationCode {
+				return "", ErrTeamExists
+			}
+		}
 		return "", lib.Err(op, err)
 	}
 
@@ -70,7 +74,7 @@ func (r *PullRequestRepo) GetById(ctx context.Context, prID string) (*models.Pul
 	const op = "pull_request_repo.GetById"
 
 	query := `
-        SELECT id, title, author_id, status, need_more_reviewers, created_at
+        SELECT id, title, author_id, status, created_at, merged_at
         FROM pull_requests
         WHERE id = $1
     `
@@ -91,7 +95,7 @@ func (r *PullRequestRepo) GetByAuthor(ctx context.Context, authorID string) ([]*
 	const op = "pull_request_repo.GetByAuthor"
 
 	query := `
-        SELECT id, title, author_id, status, need_more_reviewers, created_at
+        SELECT id, title, author_id, status, created_at, merged_at
         FROM pull_requests
         WHERE author_id = $1
         ORDER BY created_at DESC
@@ -114,7 +118,7 @@ func (r *PullRequestRepo) MarkAsMerged(ctx context.Context, prID string) error {
 
 	query := `
         UPDATE pull_requests
-        SET status = 'MERGED'
+        SET status = 'MERGED', merged_at = now()
         WHERE id = $1
     `
 
@@ -130,6 +134,30 @@ func (r *PullRequestRepo) MarkAsMerged(ctx context.Context, prID string) error {
 	if rowsAffected == 0 {
 		return ErrNotFound
 	}
+
+	return nil
+}
+
+func (r *PullRequestRepo) DeleteReviewer(ctx context.Context, prID, userID string) error {
+	const op = "pull_request_repo.DeleteReviewer"
+
+	res, err := r.getter.DefaultTrOrDB(ctx, r.db).ExecContext(
+		ctx,
+		`DELETE FROM pr_reviewers WHERE pull_request_id = $1 AND user_id = $2`,
+		prID, userID,
+	)
+	if err != nil {
+		return lib.Err(op, err)
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return lib.Err(op, err)
+	}
+	if rowsAffected == 0 {
+		return ErrNotFound
+	}
+
 	return nil
 }
 
@@ -137,7 +165,7 @@ func (r *PullRequestRepo) GetUserReviews(ctx context.Context, userID string) ([]
 	const op = "pull_request_repo.GetUserReviews"
 
 	query := `
-		SELECT p.id, p.title, p.author_id, p.status, p.need_more_reviewers, p.created_at
+		SELECT p.id, p.title, p.author_id, p.status, p.need_more_reviewers, p.created_at, p.merged_at
 		FROM pull_requests p
 		JOIN pr_reviewers prr ON prr.pull_request_id = p.id
 		WHERE prr.user_id = $1
@@ -167,7 +195,7 @@ func (r *PullRequestRepo) GetPrReviewers(ctx context.Context, prID string) ([]st
 	err := r.getter.DefaultTrOrDB(ctx, r.db).SelectContext(ctx, &userIDs, query, prID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return []string{}, ErrNotFound
 		}
 		return nil, lib.Err(op, err)
 	}
@@ -205,7 +233,7 @@ func (r *PullRequestRepo) ReassignReviewer(ctx context.Context, prID, oldUserID,
 
 		rowsAffected, err := res.RowsAffected()
 		if err != nil {
-			return lib.Err(op, err)
+			return ErrNotFound
 		}
 
 		if rowsAffected == 0 {
@@ -229,5 +257,5 @@ func (r *PullRequestRepo) ReassignReviewer(ctx context.Context, prID, oldUserID,
 		return nil
 	})
 
-	return err // TRM автоматически обработает commit/rollback
+	return err
 }

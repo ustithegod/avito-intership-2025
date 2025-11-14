@@ -131,20 +131,18 @@ func TestUserService_GetReview_Success(t *testing.T) {
 	now := time.Now()
 	prs := []*models.PullRequest{
 		{
-			ID:                "pr-1",
-			Title:             "Fix login",
-			AuthorId:          userID,
-			Status:            "OPEN", // ← ВЕРХНИЙ РЕГИСТР
-			NeedMoreReviewers: false,
-			CreatedAt:         &now,
+			ID:        "pr-1",
+			Title:     "Fix login",
+			AuthorId:  userID,
+			Status:    "OPEN", // ← ВЕРХНИЙ РЕГИСТР
+			CreatedAt: &now,
 		},
 		{
-			ID:                "pr-2",
-			Title:             "Add tests",
-			AuthorId:          userID,
-			Status:            "MERGED", // ← ВЕРХНИЙ РЕГИСТР
-			NeedMoreReviewers: true,
-			CreatedAt:         &now,
+			ID:        "pr-2",
+			Title:     "Add tests",
+			AuthorId:  userID,
+			Status:    "MERGED", // ← ВЕРХНИЙ РЕГИСТР
+			CreatedAt: &now,
 		},
 	}
 
