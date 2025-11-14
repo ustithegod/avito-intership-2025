@@ -125,6 +125,9 @@ func (s *PullRequestService) Merge(ctx context.Context, prID string) (*api.PullR
 		if pr.Status == StatusOpen {
 			err = s.prController.MarkAsMerged(ctx, pr.ID)
 		}
+		if err != nil {
+			return err
+		}
 
 		pr, err = s.prController.GetById(ctx, prID)
 		if err != nil {
@@ -180,7 +183,7 @@ func (s *PullRequestService) Reassign(ctx context.Context, prID, oldRev string) 
 		exludedReviewers := []string{author.ID}
 		exludedReviewers = append(exludedReviewers, assignedReviewers...)
 
-		newRev := ""
+		var newRev string
 		if len(exludedReviewers) >= len(activeUsers) {
 			return repo.ErrNoCandidate
 		} else {

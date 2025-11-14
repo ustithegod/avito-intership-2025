@@ -1,3 +1,4 @@
+// entrypoint
 package main
 
 import (
@@ -21,6 +22,7 @@ import (
 	"avito-intership-2025/internal/service/pr"
 	"avito-intership-2025/internal/service/team"
 	"avito-intership-2025/internal/service/user"
+
 	trmsqlx "github.com/avito-tech/go-transaction-manager/drivers/sqlx/v2"
 	"github.com/avito-tech/go-transaction-manager/trm/v2/manager"
 	"github.com/go-chi/chi/v5"
@@ -54,6 +56,11 @@ func main() {
 		slog.Error("failed to establish connection with database", sl.Err(err))
 		os.Exit(1)
 	}
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Error("failed to close db", sl.Err(err))
+		}
+	}()
 
 	// initialization of go-transaction-manager
 	trManager := manager.Must(trmsqlx.NewDefaultFactory(db))
@@ -131,18 +138,14 @@ func main() {
 			log.Info("http server stopped gracefully")
 		}
 
-		if err := db.Close(); err != nil {
-			log.Error("failed to close db", sl.Err(err))
-		}
-
 	case err := <-serverErrCh:
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Error("http server error", sl.Err(err))
-			_ = db.Close()
-			os.Exit(1)
+			// Exit immediately without defer execution to avoid exitAfterDefer warning
+			log.Error("application terminated with error")
+			os.Exit(1) //nolint:gocritic
 		}
 		log.Info("http server exited", slog.Any("err", err))
-		_ = db.Close()
 	}
 
 	log.Info("application shutdown complete")
@@ -168,7 +171,11 @@ func runMigrations(dsn string, log *slog.Logger) error {
 	if err != nil {
 		return err
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Error("failed to close migration db", sl.Err(err))
+		}
+	}()
 
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {
