@@ -1,13 +1,13 @@
 package pr_test
 
 import (
+	"context"
+	"testing"
+
 	"avito-intership-2025/internal/models"
 	repo "avito-intership-2025/internal/repository"
 	"avito-intership-2025/internal/service/mocks"
 	"avito-intership-2025/internal/service/pr"
-	"context"
-	"testing"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )

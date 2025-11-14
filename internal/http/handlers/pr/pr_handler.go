@@ -1,14 +1,14 @@
 package pr
 
 import (
-	"avito-intership-2025/internal/http/api"
-	"avito-intership-2025/internal/lib/sl"
-	repo "avito-intership-2025/internal/repository"
 	"context"
 	"errors"
 	"log/slog"
 	"net/http"
 
+	"avito-intership-2025/internal/http/api"
+	"avito-intership-2025/internal/lib/sl"
+	repo "avito-intership-2025/internal/repository"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 	"github.com/go-playground/validator/v10"
@@ -33,9 +33,9 @@ func NewPrHandler(log *slog.Logger, s prService) *PrHandler {
 }
 
 type CreateRequest struct {
-	PrID     string `json:"pull_request_id" validate:"required"`
+	PrID     string `json:"pull_request_id"   validate:"required"`
 	PrName   string `json:"pull_request_name" validate:"required,min=5"`
-	AuthorId string `json:"author_id" validate:"required"`
+	AuthorId string `json:"author_id"         validate:"required"`
 }
 
 func (h *PrHandler) Create(w http.ResponseWriter, r *http.Request) {

@@ -1,13 +1,13 @@
 package user_test
 
 import (
-	"avito-intership-2025/internal/models"
-	"avito-intership-2025/internal/service/mocks"
-	u "avito-intership-2025/internal/service/user"
 	"context"
 	"errors"
 	"testing"
 
+	"avito-intership-2025/internal/models"
+	"avito-intership-2025/internal/service/mocks"
+	u "avito-intership-2025/internal/service/user"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -80,7 +80,7 @@ func TestUserService_SetIsActive_SetIsActiveError(t *testing.T) {
 			fn := args.Get(1).(func(context.Context) error)
 			err := fn(ctx)
 			assert.Error(t, err)
-			assert.True(t, errors.Is(err, dbErr))
+			assert.ErrorIs(t, err, dbErr)
 		}).
 		Return(dbErr).
 		Once()
@@ -90,7 +90,7 @@ func TestUserService_SetIsActive_SetIsActiveError(t *testing.T) {
 
 	assert.Nil(t, resp)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, dbErr))
+	assert.ErrorIs(t, err, dbErr)
 }
 
 func TestUserService_SetIsActive_GetByIdError(t *testing.T) {
@@ -114,7 +114,7 @@ func TestUserService_SetIsActive_GetByIdError(t *testing.T) {
 			fn := args.Get(1).(func(context.Context) error)
 			err := fn(ctx)
 			assert.Error(t, err)
-			assert.True(t, errors.Is(err, dbErr))
+			assert.ErrorIs(t, err, dbErr)
 		}).
 		Return(dbErr).
 		Once()
@@ -124,7 +124,7 @@ func TestUserService_SetIsActive_GetByIdError(t *testing.T) {
 
 	assert.Nil(t, resp)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, dbErr))
+	assert.ErrorIs(t, err, dbErr)
 }
 
 func TestUserService_SetIsActive_GetTeamNameByIDError(t *testing.T) {
@@ -153,7 +153,7 @@ func TestUserService_SetIsActive_GetTeamNameByIDError(t *testing.T) {
 			fn := args.Get(1).(func(context.Context) error)
 			err := fn(ctx)
 			assert.Error(t, err)
-			assert.True(t, errors.Is(err, dbErr))
+			assert.ErrorIs(t, err, dbErr)
 		}).
 		Return(dbErr).
 		Once()
@@ -163,7 +163,7 @@ func TestUserService_SetIsActive_GetTeamNameByIDError(t *testing.T) {
 
 	assert.Nil(t, resp)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, dbErr))
+	assert.ErrorIs(t, err, dbErr)
 }
 
 func TestUserService_GetReview_Success_WithPRs(t *testing.T) {
@@ -274,7 +274,7 @@ func TestUserService_GetReview_GetByIdError(t *testing.T) {
 			fn := args.Get(1).(func(context.Context) error)
 			err := fn(ctx)
 			assert.Error(t, err)
-			assert.True(t, errors.Is(err, dbErr))
+			assert.ErrorIs(t, err, dbErr)
 		}).
 		Return(dbErr).
 		Once()
@@ -284,7 +284,7 @@ func TestUserService_GetReview_GetByIdError(t *testing.T) {
 
 	assert.Nil(t, resp)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, dbErr))
+	assert.ErrorIs(t, err, dbErr)
 }
 
 func TestUserService_GetReview_PrProviderError(t *testing.T) {
@@ -308,7 +308,7 @@ func TestUserService_GetReview_PrProviderError(t *testing.T) {
 			fn := args.Get(1).(func(context.Context) error)
 			err := fn(ctx)
 			assert.Error(t, err)
-			assert.True(t, errors.Is(err, prErr))
+			assert.ErrorIs(t, err, prErr)
 		}).
 		Return(prErr).
 		Once()
@@ -318,5 +318,5 @@ func TestUserService_GetReview_PrProviderError(t *testing.T) {
 
 	assert.Nil(t, resp)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, prErr))
+	assert.ErrorIs(t, err, prErr)
 }

@@ -1,12 +1,12 @@
 package repo
 
 import (
-	"avito-intership-2025/internal/lib"
-	"avito-intership-2025/internal/models"
 	"context"
 	"database/sql"
 	"errors"
 
+	"avito-intership-2025/internal/lib"
+	"avito-intership-2025/internal/models"
 	trmsqlx "github.com/avito-tech/go-transaction-manager/drivers/sqlx/v2"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
@@ -41,7 +41,8 @@ func (r *TeamRepo) Create(ctx context.Context, teamName string) (int, error) {
 	var teamID int
 	err := r.getter.DefaultTrOrDB(ctx, r.db).QueryRowContext(ctx, query, teamName).Scan(&teamID)
 	if err != nil {
-		if pgErr, ok := err.(*pq.Error); ok {
+		pgErr := &pq.Error{}
+		if errors.As(err, &pgErr) {
 			if pgErr.Code == uniqueViolationCode {
 				return 0, ErrTeamExists
 			}

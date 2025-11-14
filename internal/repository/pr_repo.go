@@ -1,13 +1,13 @@
 package repo
 
 import (
-	"avito-intership-2025/internal/lib"
-	"avito-intership-2025/internal/models"
 	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 
+	"avito-intership-2025/internal/lib"
+	"avito-intership-2025/internal/models"
 	trmsqlx "github.com/avito-tech/go-transaction-manager/drivers/sqlx/v2"
 	"github.com/avito-tech/go-transaction-manager/trm/v2/manager"
 	"github.com/jmoiron/sqlx"
@@ -59,7 +59,8 @@ func (r *PullRequestRepo) Create(ctx context.Context, pr *models.PullRequest) (s
 	).Scan(&prID)
 
 	if err != nil {
-		if pgErr, ok := err.(*pq.Error); ok {
+		pgErr := &pq.Error{}
+		if errors.As(err, &pgErr) {
 			if pgErr.Code == uniqueViolationCode {
 				return "", ErrPRExists
 			}
@@ -246,7 +247,8 @@ func (r *PullRequestRepo) ReassignReviewer(ctx context.Context, prID, oldUserID,
 			prID, newUserID)
 		if err != nil {
 			// Проверяем на дубликат, если newUserID уже назначен
-			if pgErr, ok := err.(*pq.Error); ok {
+			pgErr := &pq.Error{}
+			if errors.As(err, &pgErr) {
 				if pgErr.Code == uniqueViolationCode {
 					return fmt.Errorf("%s: new reviewer already assigned: %w", op, err)
 				}

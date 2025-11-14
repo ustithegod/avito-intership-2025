@@ -1,10 +1,11 @@
 package team
 
 import (
+	"context"
+
 	"avito-intership-2025/internal/http/api"
 	"avito-intership-2025/internal/models"
 	"avito-intership-2025/internal/service"
-	"context"
 )
 
 //go:generate go run github.com/vektra/mockery/v2@v2.53.5 --name=TeamProvider

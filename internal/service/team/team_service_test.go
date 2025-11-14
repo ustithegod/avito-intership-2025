@@ -1,29 +1,20 @@
 package team_test
 
 import (
-	"avito-intership-2025/internal/http/api"
-
-	"avito-intership-2025/internal/models"
-
-	repo "avito-intership-2025/internal/repository"
-
-	"avito-intership-2025/internal/service/mocks"
-
-	"avito-intership-2025/internal/service/team"
-
 	"context"
-
 	"errors"
-
 	"testing"
 
+	"avito-intership-2025/internal/http/api"
+	"avito-intership-2025/internal/models"
+	repo "avito-intership-2025/internal/repository"
+	"avito-intership-2025/internal/service/mocks"
+	"avito-intership-2025/internal/service/team"
 	"github.com/stretchr/testify/assert"
-
 	"github.com/stretchr/testify/mock"
 )
 
 func TestTeamService_Add_Success(t *testing.T) {
-
 	ctx := context.Background()
 
 	mockTeamProvider := mocks.NewTeamProvider(t)
@@ -50,24 +41,18 @@ func TestTeamService_Add_Success(t *testing.T) {
 	mockTeamProvider.On("Create", ctx, teamName).Return(teamID, nil)
 
 	mockUserProvider.On("Save", ctx, mock.MatchedBy(func(u *models.User) bool {
-
 		return u.ID == "u1" && u.Name == "Tony" && u.TeamID == teamID && u.IsActive
-
 	})).Return("", nil)
 
 	mockUserProvider.On("Save", ctx, mock.MatchedBy(func(u *models.User) bool {
-
 		return u.ID == "u2" && u.Name == "Steve" && u.TeamID == teamID && !u.IsActive
-
 	})).Return("", nil)
 
 	mockTRM.On("Do", ctx, mock.AnythingOfType("func(context.Context) error")).
 		Run(func(args mock.Arguments) {
-
 			fn := args.Get(1).(func(context.Context) error)
 
 			assert.NoError(t, fn(ctx))
-
 		}).
 		Return(nil).Once()
 
@@ -84,11 +69,9 @@ func TestTeamService_Add_Success(t *testing.T) {
 	assert.Equal(t, "Tony", resp.Members[0].Username)
 
 	assert.True(t, resp.Members[0].IsActive)
-
 }
 
 func TestTeamService_Add_TeamExists(t *testing.T) {
-
 	ctx := context.Background()
 
 	mockTeamProvider := mocks.NewTeamProvider(t)
@@ -111,13 +94,11 @@ func TestTeamService_Add_TeamExists(t *testing.T) {
 
 	mockTRM.On("Do", ctx, mock.Anything).
 		Run(func(args mock.Arguments) {
-
 			fn := args.Get(1).(func(context.Context) error)
 
 			err := fn(ctx)
 
-			assert.True(t, errors.Is(err, repo.ErrTeamExists))
-
+			assert.ErrorIs(t, err, repo.ErrTeamExists)
 		}).
 		Return(repo.ErrTeamExists).
 		Once()
@@ -128,12 +109,10 @@ func TestTeamService_Add_TeamExists(t *testing.T) {
 
 	assert.Nil(t, resp)
 
-	assert.True(t, errors.Is(err, repo.ErrTeamExists))
-
+	assert.ErrorIs(t, err, repo.ErrTeamExists)
 }
 
 func TestTeamService_Get_Success(t *testing.T) {
-
 	ctx := context.Background()
 
 	mockTeamProvider := mocks.NewTeamProvider(t)
@@ -164,11 +143,9 @@ func TestTeamService_Get_Success(t *testing.T) {
 	assert.Equal(t, teamName, resp.TeamName)
 
 	assert.Len(t, resp.Members, 2)
-
 }
 
 func TestTeamService_Get_NotFound(t *testing.T) {
-
 	ctx := context.Background()
 
 	mockTeamProvider := mocks.NewTeamProvider(t)
@@ -183,8 +160,7 @@ func TestTeamService_Get_NotFound(t *testing.T) {
 
 	assert.Nil(t, resp)
 
-	assert.True(t, errors.Is(err, repo.ErrNotFound))
-
+	assert.ErrorIs(t, err, repo.ErrNotFound)
 }
 
 func TestTeamService_Add_SaveError(t *testing.T) {
@@ -220,7 +196,7 @@ func TestTeamService_Add_SaveError(t *testing.T) {
 			fn := args.Get(1).(func(context.Context) error)
 			err := fn(ctx)
 			assert.Error(t, err)
-			assert.True(t, errors.Is(err, saveErr))
+			assert.ErrorIs(t, err, saveErr)
 		}).
 		Return(saveErr).
 		Once()
@@ -230,7 +206,7 @@ func TestTeamService_Add_SaveError(t *testing.T) {
 
 	assert.Nil(t, resp)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, saveErr))
+	assert.ErrorIs(t, err, saveErr)
 }
 
 func TestTeamService_Get_GetUsersError(t *testing.T) {
@@ -251,5 +227,5 @@ func TestTeamService_Get_GetUsersError(t *testing.T) {
 
 	assert.Nil(t, resp)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, getErr))
+	assert.ErrorIs(t, err, getErr)
 }

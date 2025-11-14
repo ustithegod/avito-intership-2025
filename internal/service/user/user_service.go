@@ -1,10 +1,11 @@
 package user
 
 import (
+	"context"
+
 	"avito-intership-2025/internal/http/api"
 	"avito-intership-2025/internal/models"
 	"avito-intership-2025/internal/service"
-	"context"
 )
 
 //go:generate go run github.com/vektra/mockery/v2@v2.53.5 --name=PrProvider
@@ -30,7 +31,12 @@ type UserService struct {
 	teamIDProvider TeamIDProvider
 }
 
-func NewUserService(trm service.TransactionManager, prProvider PrProvider, userChanger UserChanger, teamIDProvider TeamIDProvider) *UserService {
+func NewUserService(
+	trm service.TransactionManager,
+	prProvider PrProvider,
+	userChanger UserChanger,
+	teamIDProvider TeamIDProvider,
+) *UserService {
 	return &UserService{
 		trm:            trm,
 		prProvider:     prProvider,
@@ -72,7 +78,6 @@ func (s *UserService) SetIsActive(ctx context.Context, userID string, isActive b
 }
 
 func (s *UserService) GetReview(ctx context.Context, userID string) (*api.GetReviewResponse, error) {
-
 	resp := &api.GetReviewResponse{
 		UserID:       userID,
 		PullRequests: []api.PullRequestShort{},

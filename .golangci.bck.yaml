@@ -1,0 +1,79 @@
+run:
+    timeout: 5m
+    tests: true
+    modules-download-mode: readonly
+
+linters-settings:
+    errcheck:
+        check-type-assertions: true
+        check-blank: true
+
+    govet:
+        enable-all: true
+        disable:
+            - shadow
+
+    gofmt:
+        simplify: true
+
+    goimports:
+        local-prefixes: avito-intership-2025
+
+    gocritic:
+        enabled-tags:
+            - diagnostic
+            - experimental
+            - opinionated
+            - performance
+            - style
+
+    revive:
+        rules:
+            - name: exported
+              severity: warning
+            - name: unused-parameter
+              severity: warning
+            - name: unreachable-code
+              severity: warning
+
+    staticcheck:
+        checks: ["all"]
+
+    gosec:
+        excludes:
+            - G104 # Audit errors not checked
+
+    cyclop:
+        max-complexity: 15
+        skip-tests: true
+
+    dupl:
+        threshold: 100
+
+    misspell:
+        locale: US
+
+linters:
+    enable:
+        - errcheck # Проверка необработанных ошибок
+        - gosimple # Упрощение кода
+        - govet # Проверка подозрительных конструкций
+        - ineffassign # Обнаружение неиспользуемых присваиваний
+        - staticcheck # Статический анализ
+        - typecheck # Проверка типов
+        - unused # Неиспользуемый код
+        - gofmt # Форматирование
+        - goimports # Импорты
+        - misspell # Опечатки в комментариях
+        - gocritic # Мета-линтер с различными проверками
+        - revive # Быстрая замена golint
+        - gosec # Проверка безопасности
+        - cyclop # Цикломатическая сложность
+        - dupl # Дублирование кода
+
+    disable:
+        - exhaustruct # Слишком строгий для обычных проектов
+        - varnamelen # Может быть слишком навязчивым
+
+issues:
+    max-same-issues: 0

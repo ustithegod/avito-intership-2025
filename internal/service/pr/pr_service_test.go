@@ -1,15 +1,15 @@
 package pr_test
 
 import (
-	"avito-intership-2025/internal/models"
-	repo "avito-intership-2025/internal/repository"
-	"avito-intership-2025/internal/service/mocks"
-	"avito-intership-2025/internal/service/pr"
 	"context"
 	"errors"
 	"testing"
 	"time"
 
+	"avito-intership-2025/internal/models"
+	repo "avito-intership-2025/internal/repository"
+	"avito-intership-2025/internal/service/mocks"
+	"avito-intership-2025/internal/service/pr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -185,7 +185,13 @@ func TestPullRequestService_Merge_Success_AlreadyMerged_NoMarkCall(t *testing.T)
 	t.Cleanup(func() { trm.AssertExpectations(t) })
 
 	now := time.Now()
-	merged := &models.PullRequest{ID: prID, Title: "Already merged", AuthorId: "a2", Status: pr.StatusMerged, MergedAt: &now}
+	merged := &models.PullRequest{
+		ID:       prID,
+		Title:    "Already merged",
+		AuthorId: "a2",
+		Status:   pr.StatusMerged,
+		MergedAt: &now,
+	}
 	reviewers := []string{"r9"}
 
 	// First GetById shows merged, so MarkAsMerged should not be needed

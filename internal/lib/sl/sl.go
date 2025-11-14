@@ -1,17 +1,17 @@
 package sl
 
 import (
-	"avito-intership-2025/internal/http/api"
 	"bytes"
 	"encoding/json"
 	"io"
 	"log/slog"
 	"testing"
 
+	"avito-intership-2025/internal/http/api"
 	"github.com/stretchr/testify/assert"
 )
 
-// Err позволяет передавать в атрибуты slog-логов ошибку как она есть (error type)
+// Err позволяет передавать в атрибуты slog-логов ошибку как она есть (error type).
 func Err(err error) slog.Attr {
 	return slog.Attr{
 		Key:   "error",

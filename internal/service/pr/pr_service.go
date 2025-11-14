@@ -76,7 +76,6 @@ func (s *PullRequestService) Create(ctx context.Context, prID, prName, authorId 
 	}
 
 	err := s.trm.Do(ctx, func(ctx context.Context) error {
-
 		createdPrID, err := s.prController.Create(ctx, pr)
 		if err != nil {
 			return err

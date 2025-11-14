@@ -1,14 +1,14 @@
 package team
 
 import (
-	"avito-intership-2025/internal/http/api"
-	"avito-intership-2025/internal/lib/sl"
-	repo "avito-intership-2025/internal/repository"
 	"context"
 	"errors"
 	"log/slog"
 	"net/http"
 
+	"avito-intership-2025/internal/http/api"
+	"avito-intership-2025/internal/lib/sl"
+	repo "avito-intership-2025/internal/repository"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 	"github.com/go-playground/validator/v10"
@@ -33,7 +33,7 @@ func NewTeamHandler(log *slog.Logger, s teamService) *TeamHandler {
 
 type TeamAddRequest struct {
 	TeamName string           `json:"team_name" validate:"required,max=16"`
-	Members  []api.TeamMember `json:"members" validate:"required,dive"`
+	Members  []api.TeamMember `json:"members"   validate:"required,dive"`
 }
 
 func (h *TeamHandler) Add(w http.ResponseWriter, r *http.Request) {
@@ -56,7 +56,11 @@ func (h *TeamHandler) Add(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := validator.New().Struct(input); err != nil {
-		validateError := err.(validator.ValidationErrors)
+		validateError := func() validator.ValidationErrors {
+			var target validator.ValidationErrors
+			_ = errors.As(err, &target)
+			return target
+		}()
 
 		h.log.Error("invalid request", sl.Err(err))
 

@@ -7,7 +7,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// makeToken предоставляет удобную генерацию валидных JWT
+// makeToken предоставляет удобную генерацию валидных JWT.
 func makeToken(secret string, role string) string {
 	t := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"role": role,

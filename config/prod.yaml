@@ -1,0 +1,7 @@
+env: "prod"
+http_server:
+    address: "0.0.0.0:8080"
+    read_timeout: 10s
+    write_timeout: 15s
+    idle_timeout: 120s
+    shutdown_timeout: 15s

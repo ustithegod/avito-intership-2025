@@ -75,7 +75,10 @@ func ValidationError(errs validator.ValidationErrors) ErrorResponse {
 		case "required":
 			errMsgs = append(errMsgs, fmt.Sprintf("field '%s' is required", err.Field()))
 		case "max":
-			errMsgs = append(errMsgs, fmt.Sprintf("field '%s' must be no more than %s characters", err.Field(), err.Param()))
+			errMsgs = append(
+				errMsgs,
+				fmt.Sprintf("field '%s' must be no more than %s characters", err.Field(), err.Param()),
+			)
 		default:
 			errMsgs = append(errMsgs, fmt.Sprintf("field '%s' is not valid", err.Field()))
 		}

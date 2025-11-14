@@ -1,6 +1,15 @@
 package main
 
 import (
+	"context"
+	"database/sql"
+	"errors"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+
 	"avito-intership-2025/internal/http/handlers"
 	prh "avito-intership-2025/internal/http/handlers/pr"
 	teamh "avito-intership-2025/internal/http/handlers/team"
@@ -12,19 +21,13 @@ import (
 	"avito-intership-2025/internal/service/pr"
 	"avito-intership-2025/internal/service/team"
 	"avito-intership-2025/internal/service/user"
-	"context"
-	"errors"
-	"os/signal"
-	"syscall"
-
-	"log/slog"
-	"net/http"
-	"os"
-
 	trmsqlx "github.com/avito-tech/go-transaction-manager/drivers/sqlx/v2"
 	"github.com/avito-tech/go-transaction-manager/trm/v2/manager"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
@@ -36,11 +39,16 @@ const (
 
 func main() {
 	cfg := config.MustLoad()
-
 	log := setupLogger(cfg.Env)
 	log.Info("Starting PR Reviewer Assignment Service", slog.String("env", cfg.Env))
 
 	dsn := os.Getenv("DATABASE_URL")
+
+	if err := runMigrations(dsn, log); err != nil {
+		log.Error("failed to run migrations", sl.Err(err))
+		os.Exit(1)
+	}
+
 	db, err := sqlx.Connect("postgres", dsn)
 	if err != nil {
 		slog.Error("failed to establish connection with database", sl.Err(err))
@@ -101,12 +109,10 @@ func main() {
 		IdleTimeout:  cfg.HTTPServer.IdleTimeout,
 	}
 
-	// GRACEFUL: Каналы для ошибок сервера и сигналов
 	serverErrCh := make(chan error, 1)
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
-	// GRACEFUL: Запускаем сервер в горутине
 	go func() {
 		err := srv.ListenAndServe()
 		serverErrCh <- err
@@ -155,4 +161,33 @@ func setupLogger(env string) *slog.Logger {
 		)
 	}
 	return log
+}
+
+func runMigrations(dsn string, log *slog.Logger) error {
+	db, err := sql.Open("postgres", dsn)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	driver, err := postgres.WithInstance(db, &postgres.Config{})
+	if err != nil {
+		return err
+	}
+
+	m, err := migrate.NewWithDatabaseInstance(
+		"file://./migrations",
+		"postgres",
+		driver,
+	)
+	if err != nil {
+		return err
+	}
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return err
+	}
+
+	log.Info("migrations applied successfully")
+	return nil
 }

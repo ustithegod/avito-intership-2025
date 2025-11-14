@@ -13,7 +13,6 @@ import (
 	"avito-intership-2025/internal/http/handlers/mocks"
 	"avito-intership-2025/internal/http/handlers/user"
 	repo "avito-intership-2025/internal/repository"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )

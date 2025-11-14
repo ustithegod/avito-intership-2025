@@ -1,13 +1,13 @@
 package handlers
 
 import (
-	"avito-intership-2025/internal/http/api"
 	"bytes"
 	"encoding/json"
 	"io"
 	"log/slog"
 	"testing"
 
+	"avito-intership-2025/internal/http/api"
 	"github.com/stretchr/testify/assert"
 )
 

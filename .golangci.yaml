@@ -1,0 +1,42 @@
+version: "2"
+
+issues:
+    max-same-issues: 50
+
+formatters:
+    enable:
+        - gofmt
+        - gci
+        - golines
+    settings:
+        golines:
+            max-len: 120
+
+linters:
+    enable:
+        - govet
+        - staticcheck
+        - errcheck
+        - ineffassign
+        - unused
+        - gosec
+        - revive
+        - gocritic
+        - bodyclose
+        - sqlclosecheck
+        - rowserrcheck
+
+    settings:
+        staticcheck:
+            checks:
+                - all
+                - -ST1000
+                - -ST1016
+                - -QF1008
+
+        rowserrcheck:
+            packages:
+                - github.com/jmoiron/sqlx
+
+run:
+    timeout: 5m

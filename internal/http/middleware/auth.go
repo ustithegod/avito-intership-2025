@@ -1,12 +1,12 @@
 package middleware
 
 import (
-	"avito-intership-2025/internal/http/api"
 	"context"
 	"net/http"
 	"os"
 	"strings"
 
+	"avito-intership-2025/internal/http/api"
 	"github.com/go-chi/render"
 	"github.com/golang-jwt/jwt/v5"
 )
