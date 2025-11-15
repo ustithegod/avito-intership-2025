@@ -50,6 +50,23 @@ type ErrorDetail struct {
 	Message string `json:"message"`
 }
 
+type StatsResponse struct {
+	Pr   PrStats     `json:"pr"`
+	User []UserStats `json:"users"`
+}
+
+type UserStats struct {
+	UserID          string `json:"user_id"`
+	Username        string `json:"username"`
+	AssignmentCount int    `json:"assignment_count"`
+}
+
+type PrStats struct {
+	PrCount   int `json:"pr_count"`
+	OpenPrs   int `json:"open_pr_count"`
+	MergedPrs int `json:"merged_pr_count"`
+}
+
 func Error(code string, msg string) ErrorResponse {
 	return ErrorResponse{
 		Error: ErrorDetail{

@@ -8,6 +8,7 @@ import (
 	"avito-intership-2025/internal/models"
 	"avito-intership-2025/internal/service/mocks"
 	"avito-intership-2025/internal/service/pr"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -77,6 +78,7 @@ func TestPullRequestService_Create_Error_CreateFails(t *testing.T) {
 	prID := "ignored"
 	prName := "Create fails"
 	authorID := "u1"
+	teamID := 77
 
 	trm := &mocks.MockManager{}
 	trm.Test(t)
@@ -85,6 +87,12 @@ func TestPullRequestService_Create_Error_CreateFails(t *testing.T) {
 	prCtrl := mocks.NewPrController(t)
 	userGetter := mocks.NewUserGetter(t)
 	reviewerProv := mocks.NewReviewerProvider(t)
+
+	author := &models.User{ID: authorID, TeamID: teamID}
+	activeUsers := []string{"u2"}
+
+	userGetter.On("GetById", ctx, authorID).Return(author, nil).Once()
+	userGetter.On("GetActiveUsersIDInTeam", ctx, teamID).Return(activeUsers, nil).Once()
 
 	createErr := errors.New("create error")
 	prCtrl.On("Create", ctx, mock.AnythingOfType("*models.PullRequest")).
@@ -105,8 +113,6 @@ func TestPullRequestService_Create_Error_CreateFails(t *testing.T) {
 	assert.Nil(t, resp)
 	assert.Error(t, err)
 	assert.Equal(t, createErr, err)
-	// No other calls expected
-	userGetter.AssertNotCalled(t, "GetById", mock.Anything, mock.Anything)
 	reviewerProv.AssertNotCalled(t, "AssignReviewer", mock.Anything, mock.Anything, mock.Anything)
 }
 
@@ -116,7 +122,7 @@ func TestPullRequestService_Create_Error_GetAuthor(t *testing.T) {
 	prID := "pr-get-author"
 	prName := "Author lookup fails"
 	authorID := "u1"
-	teamID := 100 // irrelevant, not reached
+	teamID := 100 // не используется, но пусть останется
 
 	trm := &mocks.MockManager{}
 	trm.Test(t)
@@ -126,9 +132,7 @@ func TestPullRequestService_Create_Error_GetAuthor(t *testing.T) {
 	userGetter := mocks.NewUserGetter(t)
 	reviewerProv := mocks.NewReviewerProvider(t)
 
-	prCtrl.On("Create", ctx, mock.AnythingOfType("*models.PullRequest")).
-		Return(prID, nil).
-		Once()
+	// Create НЕ должен вызываться, поэтому не задаём ожидание на prCtrl.Create
 
 	getErr := errors.New("author not found")
 	userGetter.On("GetById", ctx, authorID).
@@ -149,8 +153,10 @@ func TestPullRequestService_Create_Error_GetAuthor(t *testing.T) {
 	assert.Nil(t, resp)
 	assert.Error(t, err)
 	assert.Equal(t, getErr, err)
+
+	// Проверяем, что этих вызовов не было
+	prCtrl.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
 	reviewerProv.AssertNotCalled(t, "AssignReviewer", mock.Anything, mock.Anything, mock.Anything)
-	// teamID lookup should not be called after GetById fails
 	userGetter.AssertNotCalled(t, "GetActiveUsersIDInTeam", mock.Anything, teamID)
 }
 

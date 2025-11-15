@@ -13,6 +13,7 @@ import (
 	"avito-intership-2025/internal/http/handlers/mocks"
 	"avito-intership-2025/internal/http/handlers/user"
 	repo "avito-intership-2025/internal/repository"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -131,7 +132,7 @@ func TestUserHandler_GetReview_Success(t *testing.T) {
 	mockService := mocks.NewMockUserService(t)
 	h := user.NewUserHandler(handlers.NewLogger(), mockService)
 
-	req := httptest.NewRequest(http.MethodGet, "/user/get_review?team_name=u1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/user/get_review?user_id=u1", nil)
 	w := httptest.NewRecorder()
 
 	expectedReview := &api.GetReviewResponse{
@@ -169,7 +170,7 @@ func TestUserHandler_GetReview_NotFound(t *testing.T) {
 	mockService := mocks.NewMockUserService(t)
 	h := user.NewUserHandler(handlers.NewLogger(), mockService)
 
-	req := httptest.NewRequest(http.MethodGet, "/user/get_review?team_name=u1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/user/get_review?user_id=u1", nil)
 	w := httptest.NewRecorder()
 
 	mockService.On("GetReview", mock.Anything, "u1").Return(nil, repo.ErrNotFound)
@@ -185,7 +186,7 @@ func TestUserHandler_GetReview_InternalError(t *testing.T) {
 	mockService := mocks.NewMockUserService(t)
 	h := user.NewUserHandler(handlers.NewLogger(), mockService)
 
-	req := httptest.NewRequest(http.MethodGet, "/user/get_review?team_name=u1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/user/get_review?user_id=u1", nil)
 	w := httptest.NewRecorder()
 
 	mockService.On("GetReview", mock.Anything, "u1").Return(nil, errors.New("db error"))

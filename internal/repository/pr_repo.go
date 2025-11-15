@@ -8,6 +8,7 @@ import (
 
 	"avito-intership-2025/internal/lib"
 	"avito-intership-2025/internal/models"
+
 	trmsqlx "github.com/avito-tech/go-transaction-manager/drivers/sqlx/v2"
 	"github.com/avito-tech/go-transaction-manager/trm/v2/manager"
 	"github.com/jmoiron/sqlx"
@@ -225,20 +226,11 @@ func (r *PullRequestRepo) ReassignReviewer(ctx context.Context, prID, oldUserID,
 
 	err := r.trm.Do(ctx, func(ctx context.Context) error {
 		// Удаляем старого ревьюера
-		res, err := r.db.ExecContext(ctx,
+		_, err := r.db.ExecContext(ctx,
 			`DELETE FROM pr_reviewers WHERE pull_request_id=$1 AND user_id=$2`,
 			prID, oldUserID)
 		if err != nil {
 			return lib.Err(op, err)
-		}
-
-		rowsAffected, err := res.RowsAffected()
-		if err != nil {
-			return lib.Err(op, err)
-		}
-
-		if rowsAffected == 0 {
-			return ErrNotAssigned
 		}
 
 		// Добавляем нового ревьюера

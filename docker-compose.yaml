@@ -9,7 +9,8 @@ services:
             - "8080:8080"
         restart: on-failure
         depends_on:
-            - db
+            db:
+                condition: service_healthy
 
     db:
         image: postgres:17

@@ -6,8 +6,8 @@ import (
 	repo "avito-intership-2025/internal/repository"
 	"avito-intership-2025/internal/service"
 	"context"
-	"errors"
 	"math/rand/v2"
+	"slices"
 )
 
 const (
@@ -57,10 +57,6 @@ func NewPullRequestService(
 	}
 }
 
-var (
-	ErrTryMergeMerged = errors.New("cannot reassign on merged PR")
-)
-
 func (s *PullRequestService) Create(ctx context.Context, prID, prName, authorId string) (*api.PullRequestSchema, error) {
 
 	pr := &models.PullRequest{
@@ -75,11 +71,6 @@ func (s *PullRequestService) Create(ctx context.Context, prID, prName, authorId 
 	}
 
 	err := s.trm.Do(ctx, func(ctx context.Context) error {
-		createdPrID, err := s.prController.Create(ctx, pr)
-		if err != nil {
-			return err
-		}
-
 		author, err := s.userGetter.GetById(ctx, authorId)
 		if err != nil {
 			return err
@@ -90,8 +81,12 @@ func (s *PullRequestService) Create(ctx context.Context, prID, prName, authorId 
 		if err != nil {
 			return err
 		}
-
 		reviewers := getRandomUsers(activeUsers, 2, authorId)
+
+		createdPrID, err := s.prController.Create(ctx, pr)
+		if err != nil {
+			return err
+		}
 
 		for _, r := range reviewers {
 			err = s.reviewerProvider.AssignReviewer(ctx, createdPrID, r)
@@ -122,7 +117,7 @@ func (s *PullRequestService) Merge(ctx context.Context, prID string) (*api.PullR
 		}
 
 		if pr.Status == StatusOpen {
-			err = s.prController.MarkAsMerged(ctx, pr.ID)
+			_ = s.prController.MarkAsMerged(ctx, pr.ID)
 		}
 
 		pr, err = s.prController.GetById(ctx, prID)
@@ -174,6 +169,10 @@ func (s *PullRequestService) Reassign(ctx context.Context, prID, oldRev string) 
 		assignedReviewers, err := s.reviewerProvider.GetPrReviewers(ctx, prID)
 		if err != nil {
 			return err
+		}
+
+		if !slices.Contains(assignedReviewers, oldRev) {
+			return repo.ErrNotAssigned
 		}
 
 		exludedReviewers := []string{author.ID}

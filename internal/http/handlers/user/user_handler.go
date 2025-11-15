@@ -9,6 +9,7 @@ import (
 	"avito-intership-2025/internal/http/api"
 	"avito-intership-2025/internal/lib/sl"
 	repo "avito-intership-2025/internal/repository"
+
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 	"github.com/go-playground/validator/v10"
@@ -92,7 +93,7 @@ func (h *UserHandler) GetReview(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	userID := r.URL.Query().Get("team_name")
+	userID := r.URL.Query().Get("user_id")
 	if userID == "" {
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, api.Error(api.ErrBadRequest, "user_id is required"))

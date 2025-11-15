@@ -10,6 +10,7 @@ import (
 	repo "avito-intership-2025/internal/repository"
 	"avito-intership-2025/internal/service/mocks"
 	"avito-intership-2025/internal/service/pr"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -116,7 +117,8 @@ func TestPullRequestService_Create_GetActiveUsersError(t *testing.T) {
 	author := &models.User{ID: authorID, TeamID: teamID}
 	activeErr := errors.New("get active users failed")
 
-	prCtrl.On("Create", ctx, mock.AnythingOfType("*models.PullRequest")).Return(prID, nil).Once()
+	// Новый порядок: сначала GetById, потом GetActiveUsers... (падает),
+	// Create НЕ должен вызываться
 	userGetter.On("GetById", ctx, authorID).Return(author, nil).Once()
 	userGetter.On("GetActiveUsersIDInTeam", ctx, teamID).Return(([]string)(nil), activeErr).Once()
 
@@ -134,6 +136,10 @@ func TestPullRequestService_Create_GetActiveUsersError(t *testing.T) {
 	assert.Nil(t, resp)
 	assert.Error(t, err)
 	assert.Equal(t, activeErr, err)
+
+	// Убедимся, что не вызывался Create и AssignReviewer
+	prCtrl.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
+	reviewerProv.AssertNotCalled(t, "AssignReviewer", mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestPullRequestService_Merge_Success_FromOpen(t *testing.T) {

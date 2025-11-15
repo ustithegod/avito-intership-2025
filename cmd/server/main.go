@@ -13,6 +13,7 @@ import (
 
 	"avito-intership-2025/internal/http/handlers"
 	prh "avito-intership-2025/internal/http/handlers/pr"
+	statsh "avito-intership-2025/internal/http/handlers/stats"
 	teamh "avito-intership-2025/internal/http/handlers/team"
 	userh "avito-intership-2025/internal/http/handlers/user"
 	mw "avito-intership-2025/internal/http/middleware"
@@ -20,6 +21,7 @@ import (
 	"avito-intership-2025/internal/lib/sl"
 	repo "avito-intership-2025/internal/repository"
 	"avito-intership-2025/internal/service/pr"
+	"avito-intership-2025/internal/service/stats"
 	"avito-intership-2025/internal/service/team"
 	"avito-intership-2025/internal/service/user"
 
@@ -68,14 +70,17 @@ func main() {
 	teamRepo := repo.NewTeamRepo(db, trmsqlx.DefaultCtxGetter)
 	userRepo := repo.NewUserRepo(db, trmsqlx.DefaultCtxGetter)
 	prRepo := repo.NewPullRequestRepo(db, trmsqlx.DefaultCtxGetter, trManager)
+	statsRepo := repo.NewStatisticsRepo(db)
 
 	teamService := team.NewTeamService(trManager, teamRepo, userRepo)
 	userService := user.NewUserService(trManager, prRepo, userRepo, teamRepo)
 	prService := pr.NewPullRequestService(trManager, prRepo, prRepo, userRepo)
+	statsService := stats.NewStatsService(trManager, statsRepo)
 
 	teamHandler := teamh.NewTeamHandler(log, teamService)
 	userHandler := userh.NewUserHandler(log, userService)
 	prHandler := prh.NewPrHandler(log, prService)
+	statsHandler := statsh.NewStatsHandler(log, statsService)
 
 	router := chi.NewRouter()
 
@@ -95,6 +100,7 @@ func main() {
 
 		r.Get("/team/get", teamHandler.Get)
 		r.Get("/users/getReview", userHandler.GetReview)
+		r.Get("/stats", statsHandler.GetStatistics)
 	})
 
 	// admin methods
