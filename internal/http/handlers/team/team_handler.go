@@ -9,6 +9,7 @@ import (
 	"avito-intership-2025/internal/http/api"
 	"avito-intership-2025/internal/lib/sl"
 	repo "avito-intership-2025/internal/repository"
+
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 	"github.com/go-playground/validator/v10"
@@ -38,7 +39,7 @@ type TeamAddRequest struct {
 
 func (h *TeamHandler) Add(w http.ResponseWriter, r *http.Request) {
 	const op = "handlers.team.Add"
-	h.log = h.log.With(
+	log := h.log.With(
 		slog.String("op", op),
 		slog.String("request_id", middleware.GetReqID(r.Context())),
 	)
@@ -48,7 +49,7 @@ func (h *TeamHandler) Add(w http.ResponseWriter, r *http.Request) {
 	var input TeamAddRequest
 
 	if err := render.DecodeJSON(r.Body, &input); err != nil {
-		h.log.Error("failed to decode request body", sl.Err(err))
+		log.Error("failed to decode request body", sl.Err(err))
 
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, api.Error(api.ErrBadRequest, "bad request"))
@@ -62,7 +63,7 @@ func (h *TeamHandler) Add(w http.ResponseWriter, r *http.Request) {
 			return target
 		}()
 
-		h.log.Error("invalid request", sl.Err(err))
+		log.Error("invalid request", sl.Err(err))
 
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, api.ValidationError(validateError))
@@ -72,27 +73,27 @@ func (h *TeamHandler) Add(w http.ResponseWriter, r *http.Request) {
 	resp, err := h.service.Add(ctx, input.TeamName, input.Members)
 	if err != nil {
 		if errors.Is(err, repo.ErrTeamExists) {
-			h.log.Error("team exists", sl.Err(err))
+			log.Error("team exists", sl.Err(err))
 
 			render.Status(r, http.StatusBadRequest)
 			render.JSON(w, r, api.Error(api.ErrCodeTeamExists, err.Error()))
 			return
 		}
-		h.log.Error("error while saving team", sl.Err(err))
+		log.Error("error while saving team", sl.Err(err))
 
 		render.Status(r, http.StatusInternalServerError)
 		render.JSON(w, r, api.InternalError())
 		return
 	}
 
-	h.log.Info("team created successfully")
+	log.Info("team created successfully")
 	render.Status(r, http.StatusCreated)
 	render.JSON(w, r, api.TeamResponse{Team: *resp})
 }
 
 func (h *TeamHandler) Get(w http.ResponseWriter, r *http.Request) {
 	const op = "handlers.team.Get"
-	h.log = h.log.With(
+	log := h.log.With(
 		slog.String("op", op),
 		slog.String("request_id", middleware.GetReqID(r.Context())),
 	)
@@ -109,16 +110,16 @@ func (h *TeamHandler) Get(w http.ResponseWriter, r *http.Request) {
 	resp, err := h.service.Get(ctx, teamName)
 	if err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
-			h.log.Info("team not found", sl.Err(err))
+			log.Info("team not found", sl.Err(err))
 			render.Status(r, http.StatusNotFound)
 			render.JSON(w, r, api.Error(api.ErrCodeNotFound, err.Error()))
 			return
 		}
-		h.log.Error("error while retrieving team", sl.Err(err))
+		log.Error("error while retrieving team", sl.Err(err))
 		render.Status(r, http.StatusInternalServerError)
 		render.JSON(w, r, api.InternalError())
 		return
 	}
-	h.log.Info("team retrieved")
+	log.Info("team retrieved")
 	render.JSON(w, r, resp)
 }

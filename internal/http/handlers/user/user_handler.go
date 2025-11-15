@@ -39,7 +39,7 @@ type SetIsActiveRequest struct {
 
 func (h *UserHandler) SetIsActive(w http.ResponseWriter, r *http.Request) {
 	const op = "handlers.user.SetIsActive"
-	h.log = h.log.With(
+	log := h.log.With(
 		slog.String("op", op),
 		slog.String("request_id", middleware.GetReqID(r.Context())),
 	)
@@ -49,7 +49,7 @@ func (h *UserHandler) SetIsActive(w http.ResponseWriter, r *http.Request) {
 	var input SetIsActiveRequest
 
 	if err := render.DecodeJSON(r.Body, &input); err != nil {
-		h.log.Error("failed to decode request body", sl.Err(err))
+		log.Error("failed to decode request body", sl.Err(err))
 
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, api.Error(api.ErrBadRequest, "bad request"))
@@ -59,7 +59,7 @@ func (h *UserHandler) SetIsActive(w http.ResponseWriter, r *http.Request) {
 	if err := validator.New().Struct(input); err != nil {
 		validateError := err.(validator.ValidationErrors)
 
-		h.log.Error("invalid request", sl.Err(err))
+		log.Error("invalid request", sl.Err(err))
 
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, api.ValidationError(validateError))
@@ -69,24 +69,24 @@ func (h *UserHandler) SetIsActive(w http.ResponseWriter, r *http.Request) {
 	resp, err := h.service.SetIsActive(ctx, input.UserID, input.IsActive)
 	if err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
-			h.log.Info("user not found", sl.Err(err))
+			log.Info("user not found", sl.Err(err))
 			render.Status(r, http.StatusNotFound)
 			render.JSON(w, r, api.Error(api.ErrCodeNotFound, err.Error()))
 			return
 		}
-		h.log.Error("error while changing user", sl.Err(err))
+		log.Error("error while changing user", sl.Err(err))
 		render.Status(r, http.StatusInternalServerError)
 		render.JSON(w, r, api.InternalError())
 		return
 	}
 
-	h.log.Info("user changed successfully")
+	log.Info("user changed successfully")
 	render.JSON(w, r, api.UserResponse{User: *resp})
 }
 
 func (h *UserHandler) GetReview(w http.ResponseWriter, r *http.Request) {
 	const op = "handlers.user.GetReview"
-	h.log = h.log.With(
+	log := h.log.With(
 		slog.String("op", op),
 		slog.String("request_id", middleware.GetReqID(r.Context())),
 	)
@@ -103,17 +103,17 @@ func (h *UserHandler) GetReview(w http.ResponseWriter, r *http.Request) {
 	resp, err := h.service.GetReview(ctx, userID)
 	if err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
-			h.log.Info("prs not found", sl.Err(err))
+			log.Info("prs not found", sl.Err(err))
 			render.Status(r, http.StatusNotFound)
 			render.JSON(w, r, api.Error(api.ErrCodeNotFound, err.Error()))
 			return
 		}
-		h.log.Error("error while retrieving prs", sl.Err(err))
+		log.Error("error while retrieving prs", sl.Err(err))
 		render.Status(r, http.StatusInternalServerError)
 		render.JSON(w, r, api.InternalError())
 		return
 	}
 
-	h.log.Info("retrieved prs successfully")
+	log.Info("retrieved prs successfully")
 	render.JSON(w, r, resp)
 }

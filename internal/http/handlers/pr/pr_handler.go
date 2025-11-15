@@ -9,6 +9,7 @@ import (
 	"avito-intership-2025/internal/http/api"
 	"avito-intership-2025/internal/lib/sl"
 	repo "avito-intership-2025/internal/repository"
+
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 	"github.com/go-playground/validator/v10"
@@ -40,7 +41,7 @@ type CreateRequest struct {
 
 func (h *PrHandler) Create(w http.ResponseWriter, r *http.Request) {
 	const op = "handlers.pr.Create"
-	h.log = h.log.With(
+	log := h.log.With(
 		slog.String("op", op),
 		slog.String("request_id", middleware.GetReqID(r.Context())),
 	)
@@ -49,7 +50,7 @@ func (h *PrHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	var input CreateRequest
 	if err := render.DecodeJSON(r.Body, &input); err != nil {
-		h.log.Error("failed to decode request body", sl.Err(err))
+		log.Error("failed to decode request body", sl.Err(err))
 
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, api.Error(api.ErrBadRequest, "bad request"))
@@ -59,7 +60,7 @@ func (h *PrHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if err := validator.New().Struct(input); err != nil {
 		validateError := err.(validator.ValidationErrors)
 
-		h.log.Error("invalid request", sl.Err(err))
+		log.Error("invalid request", sl.Err(err))
 
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, api.ValidationError(validateError))
@@ -69,18 +70,18 @@ func (h *PrHandler) Create(w http.ResponseWriter, r *http.Request) {
 	resp, err := h.service.Create(ctx, input.PrID, input.PrName, input.AuthorId)
 	if err != nil {
 		if errors.Is(err, repo.ErrPRExists) {
-			h.log.Info("pr already exists", sl.Err(err))
+			log.Info("pr already exists", sl.Err(err))
 			render.Status(r, http.StatusConflict)
 			render.JSON(w, r, api.Error(api.ErrCodePRExists, err.Error()))
 			return
 		}
 		if errors.Is(err, repo.ErrNotFound) {
-			h.log.Info("resource not found", sl.Err(err))
+			log.Info("resource not found", sl.Err(err))
 			render.Status(r, http.StatusNotFound)
 			render.JSON(w, r, api.Error(api.ErrCodeNotFound, err.Error()))
 			return
 		}
-		h.log.Error("error while creating pr", sl.Err(err))
+		log.Error("error while creating pr", sl.Err(err))
 		render.Status(r, http.StatusInternalServerError)
 		render.JSON(w, r, api.InternalError())
 		return
@@ -98,7 +99,7 @@ type MergeRequest struct {
 
 func (h *PrHandler) Merge(w http.ResponseWriter, r *http.Request) {
 	const op = "handlers.pr.Merge"
-	h.log = h.log.With(
+	log := h.log.With(
 		slog.String("op", op),
 		slog.String("request_id", middleware.GetReqID(r.Context())),
 	)
@@ -107,7 +108,7 @@ func (h *PrHandler) Merge(w http.ResponseWriter, r *http.Request) {
 
 	var input MergeRequest
 	if err := render.DecodeJSON(r.Body, &input); err != nil {
-		h.log.Error("failed to decode request body", sl.Err(err))
+		log.Error("failed to decode request body", sl.Err(err))
 
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, api.Error(api.ErrBadRequest, "bad request"))
@@ -117,7 +118,7 @@ func (h *PrHandler) Merge(w http.ResponseWriter, r *http.Request) {
 	if err := validator.New().Struct(input); err != nil {
 		validateError := err.(validator.ValidationErrors)
 
-		h.log.Error("invalid request", sl.Err(err))
+		log.Error("invalid request", sl.Err(err))
 
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, api.ValidationError(validateError))
@@ -127,12 +128,12 @@ func (h *PrHandler) Merge(w http.ResponseWriter, r *http.Request) {
 	resp, err := h.service.Merge(ctx, input.PrID)
 	if err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
-			h.log.Info("pr not found", sl.Err(err))
+			log.Info("pr not found", sl.Err(err))
 			render.Status(r, http.StatusNotFound)
 			render.JSON(w, r, api.Error(api.ErrCodeNotFound, err.Error()))
 			return
 		}
-		h.log.Error("error while merging pr", sl.Err(err))
+		log.Error("error while merging pr", sl.Err(err))
 		render.Status(r, http.StatusInternalServerError)
 		render.JSON(w, r, api.InternalError())
 		return
@@ -148,7 +149,7 @@ type ReassignRequest struct {
 
 func (h *PrHandler) Reassign(w http.ResponseWriter, r *http.Request) {
 	const op = "handlers.pr.Merge"
-	h.log = h.log.With(
+	log := h.log.With(
 		slog.String("op", op),
 		slog.String("request_id", middleware.GetReqID(r.Context())),
 	)
@@ -157,7 +158,7 @@ func (h *PrHandler) Reassign(w http.ResponseWriter, r *http.Request) {
 
 	var input ReassignRequest
 	if err := render.DecodeJSON(r.Body, &input); err != nil {
-		h.log.Error("failed to decode request body", sl.Err(err))
+		log.Error("failed to decode request body", sl.Err(err))
 
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, api.Error(api.ErrBadRequest, "bad request"))
@@ -167,7 +168,7 @@ func (h *PrHandler) Reassign(w http.ResponseWriter, r *http.Request) {
 	if err := validator.New().Struct(input); err != nil {
 		validateError := err.(validator.ValidationErrors)
 
-		h.log.Error("invalid request", sl.Err(err))
+		log.Error("invalid request", sl.Err(err))
 
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, api.ValidationError(validateError))
@@ -178,27 +179,27 @@ func (h *PrHandler) Reassign(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, repo.ErrNotFound):
-			h.log.Info("resource not found", sl.Err(err))
+			log.Info("resource not found", sl.Err(err))
 			render.Status(r, http.StatusNotFound)
 			render.JSON(w, r, api.Error(api.ErrCodeNotFound, err.Error()))
 
 		case errors.Is(err, repo.ErrNoCandidate):
-			h.log.Info("no candidate", sl.Err(err))
+			log.Info("no candidate", sl.Err(err))
 			render.Status(r, http.StatusConflict)
 			render.JSON(w, r, api.Error(api.ErrCodeNoCandidate, err.Error()))
 
 		case errors.Is(err, repo.ErrPRMerged):
-			h.log.Info("no candidate", sl.Err(err))
+			log.Info("no candidate", sl.Err(err))
 			render.Status(r, http.StatusConflict)
 			render.JSON(w, r, api.Error(api.ErrCodePRMerged, err.Error()))
 
 		case errors.Is(err, repo.ErrNotAssigned):
-			h.log.Info("no candidate", sl.Err(err))
+			log.Info("no candidate", sl.Err(err))
 			render.Status(r, http.StatusConflict)
 			render.JSON(w, r, api.Error(api.ErrCodeNotAssigned, err.Error()))
 
 		default:
-			h.log.Error("error while reassigning pr", sl.Err(err))
+			log.Error("error while reassigning pr", sl.Err(err))
 			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, api.InternalError())
 		}

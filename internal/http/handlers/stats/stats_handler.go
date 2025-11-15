@@ -30,7 +30,7 @@ func NewStatsHandler(log *slog.Logger, s statsService) *StatsHandler {
 
 func (h *StatsHandler) GetStatistics(w http.ResponseWriter, r *http.Request) {
 	const op = "handlers.stats.GetStatistics"
-	h.log = h.log.With(
+	log := h.log.With(
 		slog.String("op", op),
 		slog.String("request_id", middleware.GetReqID(r.Context())),
 	)
@@ -49,7 +49,7 @@ func (h *StatsHandler) GetStatistics(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := h.service.GetStatistics(ctx, sort)
 	if err != nil {
-		h.log.Error("error while retrieving statistics", sl.Err(err))
+		log.Error("error while retrieving statistics", sl.Err(err))
 		render.Status(r, http.StatusInternalServerError)
 		render.JSON(w, r, api.InternalError())
 	}
